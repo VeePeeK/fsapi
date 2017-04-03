@@ -6,21 +6,14 @@
  * Time: 12:34
  */
 use Phalcon\Mvc\Micro;
-use Phalcon\Di\FactoryDefault;
-use Phalcon\Mvc\Url as UrlProvider;
 use Phalcon\Http\Response;
 
 //folder for storing files
 const FILES_FOLDER = "/files/";
+//Maximum size of files
 const FILE_MAX_SIZE = 10000000;
 
 try {
-    //$di = new FactoryDefault();
-    //$di->set('url', function () {
-   //    $url = new UrlProvider();
-    //    $url->setBaseUri('/testApi/');
-    //    return $url;
-   // });
 
     $app = new Micro();
 
@@ -88,25 +81,58 @@ try {
                                     }
                                 } else {
                                     //file already exist
-                                    if (move_uploaded_file($file['tmp_name'], $uploadFilename)) {
-                                        //file was successfully moved
-                                        $response->setStatusCode(200);
-                                        $response->setJsonContent(
-                                            [
-                                                "status" => "OK",
-                                                "message" => "Replaced"
-                                            ]
-                                        );
-                                    } else {
-                                        //error during moving file
+                                    $params = array_diff($_GET,array('_url' => "/fs/file"));
+                                    if (array_key_exists('replace',$params))
+                                    {
+                                        $replace = $params['replace'];
+                                        if ($replace==1)
+                                        {
+                                            //if file needs to be replaced
+                                            if (move_uploaded_file($file['tmp_name'], $uploadFilename)) {
+                                                //file was successfully moved
+                                                $response->setStatusCode(200);
+                                                $response->setJsonContent(
+                                                    [
+                                                        "status" => "OK",
+                                                        "message" => "Replaced"
+                                                    ]
+                                                );
+                                            } else {
+                                                //error during moving file
+                                                $response->setStatusCode(500);
+                                                $response->setJsonContent(
+                                                    [
+                                                        "status" => "Error",
+                                                        "message" => "Can't move file. "
+                                                    ]
+                                                );
+                                            }
+                                        }
+                                        else
+                                        {
+                                            //if file is not replacing
+                                            $response->setStatusCode(500);
+                                            $response->setJsonContent(
+                                                [
+                                                    "status" => "Error",
+                                                    "message" => "File exist. To replace it set 'replace' parameter to 1."
+                                                ]
+                                            );
+                                        }
+
+                                    }
+                                    else
+                                    {
+                                        //file exist and there is no replace mark
                                         $response->setStatusCode(500);
                                         $response->setJsonContent(
                                             [
                                                 "status" => "Error",
-                                                "message" => "Can't move file. "
+                                                "message" => "File exist. To replace it set 'replace' parameter to 1."
                                             ]
                                         );
                                     }
+
                                 }
                             }
                             else
@@ -171,7 +197,7 @@ try {
             return $response;
         }
     );
-    //Show file
+    //Show file or meta
     $app->get(
         "/fs/file",
         function () {
@@ -277,7 +303,7 @@ try {
                     $response->setJsonContent(
                         [
                             "status" => "Error",
-                            "message" => "You need to specify filename"
+                            "message" => "You need to specify filename."
                         ]
                     );
                 }
@@ -289,19 +315,15 @@ try {
                 $response->setJsonContent(
                     [
                         "status" => "Error",
-                        "message" => "You need to request some file"
+                        "message" => "To request file set the 'filename' parameter."
                     ]
                 );
             }
             return $response;
         }
     );
-    $app->get(
-        "/",
-        function () {
-            echo "main";
-        }
-    );
+
+
     $app->handle();
 }
 catch (Exception $e) {

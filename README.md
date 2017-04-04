@@ -16,6 +16,9 @@ File '.htaccess' specifies all requests to go to index.php. File 'composer.json'
 
 
 TODO: add users, using database set restrictions to edit files of other user's files and set limits for size, different folders for different users.
-TODO: use gzip for requests and responses
-TODO: optimizations for upload and download files, support very big files
-TODO: change HEX represantation of file in response for something better
+
+TODO: use gzip for requests and responses.
+
+TODO: optimizations for upload and download files, support very big files.
+
+TODO: change HEX represantation of file in response for something better.

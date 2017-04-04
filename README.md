@@ -13,3 +13,9 @@ Any other request will not be proceeded. Any response will be in JSON format: 's
 All files will be saved in the directory specified in the FILES_FOLDER const. Maximum size of the file specified in the FILE_MAX_SIZE const.
 
 File '.htaccess' specifies all requests to go to index.php. File 'composer.json' requires Phalcon framework.
+
+
+TODO: add users, using database set restrictions to edit files of other user's files and set limits for size, different folders for different users.
+TODO: use gzip for requests and responses
+TODO: optimizations for upload and download files, support very big files
+TODO: change HEX represantation of file in response for something better

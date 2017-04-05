@@ -21,17 +21,30 @@ try {
     $app->get(
         "/fs",
         function () {
+            try {
+                $fileArray = array_diff(scandir(FILES_FOLDER), array('..', '.'));
+                $data = [];
+                foreach ($fileArray as $file) {
+                    $data[] = [
+                        "name" => $file
+                    ];
+                }
 
-            $fileArray = array_diff(scandir(FILES_FOLDER), array('..', '.'));
-            $data = [];
-            foreach ($fileArray as $file)
+                return json_encode($data);
+            }
+            catch (Exception $ex)
             {
-                $data[] = [
-                    "name" => $file
-                ];
+                $response = new Response();
+                $response->setStatusCode(500);
+                $response->setJsonContent(
+                    [
+                        "status" => "Error",
+                        "message" => $ex->getMessage()
+                    ]
+                );
+                return $response;
             }
 
-            return json_encode($data);
         }
     );
 
@@ -40,77 +53,86 @@ try {
         "/fs",
         function() {
             $response = new Response();
-            $filesCount = count($_FILES);
-            if ($filesCount==1)
-            {
-                foreach ($_FILES as $file) {
-                    //Only one file came throw POST
-                    if ($file['error']==UPLOAD_ERR_OK) {
-                        //if there is no error
-                        if ($file['size']<FILE_MAX_SIZE) {
-                            //if size is alright
+            try {
 
-                            if (!is_dir(FILES_FOLDER)) {
-                                mkdir(FILES_FOLDER);
-                            }
 
-                            $filename = basename($file['name']);
-                            if (preg_match("/(^[a-zA-Z0-9]+([a-zA-Z\_0-9\.-]*))$/" , $filename)!=NULL) {
+                $filesCount = count($_FILES);
+                if ($filesCount == 1) {
+                    foreach ($_FILES as $file) {
+                        //Only one file came throw POST
+                        if ($file['error'] == UPLOAD_ERR_OK) {
+                            //if there is no error
+                            if ($file['size'] < FILE_MAX_SIZE) {
+                                //if size is alright
 
-                                $uploadFilename = FILES_FOLDER . basename($file['name']);
-                                if (!file_exists($uploadFilename)) {
-                                    //if file not exist
-                                    if (move_uploaded_file($file['tmp_name'], $uploadFilename)) {
-                                        //file was successfully moved
-                                        $response->setStatusCode(200);
-                                        $response->setJsonContent(
-                                            [
-                                                "status" => "OK",
-                                                "message" => "Created"
-                                            ]
-                                        );
+                                if (!is_dir(FILES_FOLDER)) {
+                                    mkdir(FILES_FOLDER);
+                                }
+
+                                $filename = basename($file['name']);
+                                if (preg_match("/(^[a-zA-Z0-9]+([a-zA-Z\_0-9\.-]*))$/", $filename) != NULL) {
+
+                                    $uploadFilename = FILES_FOLDER . basename($file['name']);
+                                    if (!file_exists($uploadFilename)) {
+                                        //if file not exist
+                                        if (move_uploaded_file($file['tmp_name'], $uploadFilename)) {
+                                            //file was successfully moved
+                                            $response->setStatusCode(200);
+                                            $response->setJsonContent(
+                                                [
+                                                    "status" => "OK",
+                                                    "message" => "Created"
+                                                ]
+                                            );
+                                        } else {
+                                            //error during moving file
+                                            $response->setStatusCode(500);
+                                            $response->setJsonContent(
+                                                [
+                                                    "status" => "Error",
+                                                    "message" => "Can't move file. "
+                                                ]
+                                            );
+                                        }
                                     } else {
-                                        //error during moving file
-                                        $response->setStatusCode(500);
-                                        $response->setJsonContent(
-                                            [
-                                                "status" => "Error",
-                                                "message" => "Can't move file. "
-                                            ]
-                                        );
-                                    }
-                                } else {
-                                    //file already exist
-                                    $params = array_diff($_GET,array('_url' => "/fs/file"));
-                                    if (array_key_exists('replace',$params))
-                                    {
-                                        $replace = $params['replace'];
-                                        if ($replace==1)
-                                        {
-                                            //if file needs to be replaced
-                                            if (move_uploaded_file($file['tmp_name'], $uploadFilename)) {
-                                                //file was successfully moved
-                                                $response->setStatusCode(200);
-                                                $response->setJsonContent(
-                                                    [
-                                                        "status" => "OK",
-                                                        "message" => "Replaced"
-                                                    ]
-                                                );
+                                        //file already exist
+                                        $params = array_diff($_GET, array('_url' => "/fs/file"));
+                                        if (array_key_exists('replace', $params)) {
+                                            $replace = $params['replace'];
+                                            if ($replace == 1) {
+                                                //if file needs to be replaced
+                                                if (move_uploaded_file($file['tmp_name'], $uploadFilename)) {
+                                                    //file was successfully moved
+                                                    $response->setStatusCode(200);
+                                                    $response->setJsonContent(
+                                                        [
+                                                            "status" => "OK",
+                                                            "message" => "Replaced"
+                                                        ]
+                                                    );
+                                                } else {
+                                                    //error during moving file
+                                                    $response->setStatusCode(500);
+                                                    $response->setJsonContent(
+                                                        [
+                                                            "status" => "Error",
+                                                            "message" => "Can't move file. "
+                                                        ]
+                                                    );
+                                                }
                                             } else {
-                                                //error during moving file
+                                                //if file is not replacing
                                                 $response->setStatusCode(500);
                                                 $response->setJsonContent(
                                                     [
                                                         "status" => "Error",
-                                                        "message" => "Can't move file. "
+                                                        "message" => "File exist. To replace it set 'replace' parameter to 1."
                                                     ]
                                                 );
                                             }
-                                        }
-                                        else
-                                        {
-                                            //if file is not replacing
+
+                                        } else {
+                                            //file exist and there is no replace mark
                                             $response->setStatusCode(500);
                                             $response->setJsonContent(
                                                 [
@@ -121,78 +143,70 @@ try {
                                         }
 
                                     }
-                                    else
-                                    {
-                                        //file exist and there is no replace mark
-                                        $response->setStatusCode(500);
-                                        $response->setJsonContent(
-                                            [
-                                                "status" => "Error",
-                                                "message" => "File exist. To replace it set 'replace' parameter to 1."
-                                            ]
-                                        );
-                                    }
-
+                                } else {
+                                    //filename is not safe
+                                    $response->setStatusCode(400);
+                                    $response->setJsonContent(
+                                        [
+                                            "status" => "Error",
+                                            "message" => "Filename has incorrect symbols."
+                                        ]
+                                    );
                                 }
-                            }
-                            else
-                            {
-                                //filename is not safe
+                            } else {
+                                //file too big
                                 $response->setStatusCode(400);
                                 $response->setJsonContent(
                                     [
                                         "status" => "Error",
-                                        "message" => "Filename has incorrect symbols."
+                                        "message" => "File too big. File size: " . $file['size'] . ". Max size: " . FILE_MAX_SIZE
                                     ]
                                 );
+
                             }
-                        }
-                        else
-                        {
-                            //file too big
-                            $response->setStatusCode(400);
+                        } else {
+                            //if file received with error
+                            $response->setStatusCode(500);
                             $response->setJsonContent(
                                 [
                                     "status" => "Error",
-                                    "message" => "File too big. File size: " . $file['size'] . ". Max size: " . FILE_MAX_SIZE
+                                    "message" => "Error during receiving file. Error code: " . $file['error']
                                 ]
                             );
-
                         }
                     }
-                    else
-                    {
-                        //if file received with error
-                        $response->setStatusCode(500);
+                } else {
+                    if ($filesCount == 0) {
+                        //Zero files came
+                        $response->setStatusCode(400);
                         $response->setJsonContent(
                             [
                                 "status" => "Error",
-                                "message" => "Error during receiving file. Error code: " . $file['error']
+                                "message" => "Where is no file to post"
+                            ]
+                        );
+                    } else {
+                        //Two or more files came
+                        $response->setStatusCode(400);
+                        $response->setJsonContent(
+                            [
+                                "status" => "Error",
+                                "message" => "Only one file uploading allowed"
                             ]
                         );
                     }
                 }
             }
-            else {
-                if ($filesCount == 0) {
-                    //Zero files came
-                    $response->setStatusCode(400);
-                    $response->setJsonContent(
-                        [
-                            "status" => "Error",
-                            "message" => "Where is no file to post"
-                        ]
-                    );
-                } else {
-                    //Two or more files came
-                    $response->setStatusCode(400);
-                    $response->setJsonContent(
-                        [
-                            "status" => "Error",
-                            "message" => "Only one file uploading allowed"
-                        ]
-                    );
-                }
+            catch (Exception $ex)
+            {
+                $response = new Response();
+                $response->setStatusCode(500);
+                $response->setJsonContent(
+                    [
+                        "status" => "Error",
+                        "message" => $ex->getMessage()
+                    ]
+                );
             }
             return $response;
         }
@@ -202,120 +216,124 @@ try {
         "/fs/file",
         function () {
             $response = new Response();
-            $params = array_diff($_GET,array('_url' => "/fs/file"));
-            $parameterCount = count($params);
-            if ($parameterCount>0)
-            {
-                if (array_key_exists('filename',$params)) {
-                    $filename = $params['filename'];
-                    if (preg_match("/(^[a-zA-Z0-9]+([a-zA-Z\_0-9\.-]*))$/" , $filename)!=NULL) {
-                        $uploadFilename = FILES_FOLDER . $filename;
-                        if (file_exists($uploadFilename)) {
-                            //if filename correct and file exist
-                            if (array_key_exists('meta', $params)) {
-                                $meta = $params['meta'];
-                            } else {
-                                $meta = 0;
-                            }
-
-                            if ($meta == 0 || $meta == 1) {
-                                //if meta parameter not set or set correctly
-
-                                if ($meta == 0) {
-                                    //output file content
-                                    $file = fopen($uploadFilename, "rb");
-                                    //$data = file_get_contents($uploadFilename);
-                                    $data = unpack("H*",fread($file, filesize($uploadFilename)));
-                                    $response->setStatusCode(200);
-                                    $response->setJsonContent(
-                                        [
-                                            "status" => "OK",
-                                            "file-content" => $data[1]
-                                        ]
-                                    );
-                                    fclose($file);
-                                    //echo json_encode($data);
-
+            try {
+                $params = array_diff($_GET, array('_url' => "/fs/file"));
+                $parameterCount = count($params);
+                if ($parameterCount > 0) {
+                    if (array_key_exists('filename', $params)) {
+                        $filename = $params['filename'];
+                        if (preg_match("/(^[a-zA-Z0-9]+([a-zA-Z\_0-9\.-]*))$/", $filename) != NULL) {
+                            $uploadFilename = FILES_FOLDER . $filename;
+                            if (file_exists($uploadFilename)) {
+                                //if filename correct and file exist
+                                if (array_key_exists('meta', $params)) {
+                                    $meta = $params['meta'];
                                 } else {
-                                    //output file meta
-                                    $metaArray = stat($uploadFilename);
+                                    $meta = 0;
+                                }
 
-                                    $info = finfo_file(finfo_open(FILEINFO_NONE),$uploadFilename);
-                                    $mimeType = finfo_file(finfo_open(FILEINFO_MIME_TYPE),$uploadFilename);
-                                    $mimeEnc = finfo_file(finfo_open(FILEINFO_MIME_ENCODING),$uploadFilename);
-                                   // echo  $info;
-                                    $data = array();
-                                    $data["filename"] = basename($uploadFilename);
-                                    $data["file-size"] = filesize($uploadFilename);
-                                    $data["last-change-time"] = date("d F Y H:i:s.", filemtime($uploadFilename));
-                                    $data["create-time"] = date("d F Y H:i:s.", filectime($uploadFilename));
-                                    $data["file-type"] = filetype($uploadFilename);
-                                    $data["info"]=$info;
-                                    $data["mime-type"] = $mimeType;
-                                    $data["mime-encoding"] = $mimeEnc;
-                                    $response->setStatusCode(200);
+                                if ($meta == 0 || $meta == 1) {
+                                    //if meta parameter not set or set correctly
+
+                                    if ($meta == 0) {
+                                        //output file content
+                                        $file = fopen($uploadFilename, "rb");
+                                        //$data = file_get_contents($uploadFilename);
+                                        $data = unpack("H*", fread($file, filesize($uploadFilename)));
+                                        $response->setStatusCode(200);
+                                        $response->setJsonContent(
+                                            [
+                                                "status" => "OK",
+                                                "file-content" => $data[1]
+                                            ]
+                                        );
+                                        fclose($file);
+                                        //echo json_encode($data);
+
+                                    } else {
+                                        //output file meta
+                                        $metaArray = stat($uploadFilename);
+
+                                        $info = finfo_file(finfo_open(FILEINFO_NONE), $uploadFilename);
+                                        $mimeType = finfo_file(finfo_open(FILEINFO_MIME_TYPE), $uploadFilename);
+                                        $mimeEnc = finfo_file(finfo_open(FILEINFO_MIME_ENCODING), $uploadFilename);
+                                        // echo  $info;
+                                        $data = array();
+                                        $data["filename"] = basename($uploadFilename);
+                                        $data["file-size"] = filesize($uploadFilename);
+                                        $data["last-change-time"] = date("d F Y H:i:s.", filemtime($uploadFilename));
+                                        $data["create-time"] = date("d F Y H:i:s.", filectime($uploadFilename));
+                                        $data["file-type"] = filetype($uploadFilename);
+                                        $data["info"] = $info;
+                                        $data["mime-type"] = $mimeType;
+                                        $data["mime-encoding"] = $mimeEnc;
+                                        $response->setStatusCode(200);
+                                        $response->setJsonContent(
+                                            [
+                                                "status" => "OK",
+                                                "meta" => $data
+                                            ]
+                                        );
+                                    }
+                                } else {
+                                    //wrong meta parameter
+                                    $response->setStatusCode(400);
                                     $response->setJsonContent(
                                         [
-                                            "status" => "OK",
-                                            "meta" => $data
+                                            "status" => "Error",
+                                            "message" => "META parameter should be equal 1 or 0 (default 0)."
                                         ]
                                     );
                                 }
                             } else {
-                                //wrong meta parameter
-                                $response->setStatusCode(400);
+                                //file not exist
+                                $response->setStatusCode(500);
                                 $response->setJsonContent(
                                     [
                                         "status" => "Error",
-                                        "message" => "META parameter should be equal 1 or 0 (default 0)."
+                                        "message" => "File not exist."
                                     ]
                                 );
                             }
-                        }
-                        else
-                        {
-                            //file not exist
-                            $response->setStatusCode(500);
+                        } else {
+                            //bad filename
+                            $response->setStatusCode(400);
                             $response->setJsonContent(
                                 [
                                     "status" => "Error",
-                                    "message" => "File not exist."
+                                    "message" => "Filename has incorrect symbols."
                                 ]
                             );
                         }
-                    }
-                    else
-                    {
-                        //bad filename
+                    } else {
+                        //filename not specified
                         $response->setStatusCode(400);
                         $response->setJsonContent(
                             [
                                 "status" => "Error",
-                                "message" => "Filename has incorrect symbols."
+                                "message" => "You need to specify filename."
                             ]
                         );
                     }
-                }
-                else
-                {
-                    //filename not specified
+                } else {
+                    //if file not specified
                     $response->setStatusCode(400);
                     $response->setJsonContent(
                         [
                             "status" => "Error",
-                            "message" => "You need to specify filename."
+                            "message" => "To request file set the 'filename' parameter."
                         ]
                     );
                 }
             }
-            else
+            catch (Exception $ex)
             {
-                //if file not specified
-                $response->setStatusCode(400);
+                $response = new Response();
+                $response->setStatusCode(500);
                 $response->setJsonContent(
                     [
                         "status" => "Error",
-                        "message" => "To request file set the 'filename' parameter."
+                        "message" => $ex->getMessage()
                     ]
                 );
             }
